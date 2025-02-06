@@ -1,4 +1,4 @@
-### SQLite vs. MySQL: A Comparison  
+# SQLite vs. MySQL: A Comparison  
 
 I have worked with both **SQLite and MySQL** for this project, and each has its strengths depending on the use case. Below is a comparison highlighting the advantages and disadvantages of both databases.  
 
