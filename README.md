@@ -102,6 +102,16 @@ CREATE TABLE students (
 );
 ```
 
+## Screenshots
+
+![Screenshot from 2025-06-11 00-24-40](https://github.com/user-attachments/assets/5b8e7581-2c85-4322-b364-0b8e02e01347)
+![Screenshot from 2025-06-11 00-25-24](https://github.com/user-attachments/assets/387bd779-03e5-4e6e-9721-a245fb971aa5)
+![Screenshot from 2025-06-11 00-25-37](https://github.com/user-attachments/assets/e0f6be11-23f8-4f30-85a3-f035cea397b8)
+![Screenshot from 2025-06-11 00-25-43](https://github.com/user-attachments/assets/0398c089-f9db-4400-9394-93e80f198d83)
+![Screenshot from 2025-06-11 00-25-50](https://github.com/user-attachments/assets/64636438-98ce-42a6-8c3e-966cb7a8299f)
+![Screenshot from 2025-06-11 00-25-54](https://github.com/user-attachments/assets/d4e3daea-251b-43ff-831a-43ba20a51935)
+
+
 ## Technical Details
 
 - **Framework**: Qt6 for GUI
