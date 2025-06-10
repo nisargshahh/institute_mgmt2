@@ -1,184 +1,345 @@
-#include <iostream>
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QMainWindow>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QGridLayout>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QLineEdit>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QTableWidget>
+#include <QtWidgets/QTableWidgetItem>
+#include <QtWidgets/QMessageBox>
+#include <QtWidgets/QHeaderView>
+#include <QtWidgets/QGroupBox>
+#include <QtWidgets/QDoubleSpinBox>
+#include <QtWidgets/QSpinBox>
 #include <sqlite3.h>
 #include <sstream>
 #include <string>
-#include <limits>
 
-using namespace std;
-
-#define RESET "\033[0m"
-#define RED "\033[31m"
-#define GREEN "\033[32m"
-#define YELLOW "\033[33m"
-#define BLUE "\033[34m"
-#define CYAN "\033[36m"
-
-const char *DB_NAME = "institute.db";
-
-class Student
+class StudentManagementSystem : public QMainWindow
 {
+    Q_OBJECT
+
 private:
-	int studentID;
-	string fullName, major;
-	float gpa;
+    // UI Components
+    QWidget *centralWidget;
+    QVBoxLayout *mainLayout;
+    QHBoxLayout *topLayout;
+    QVBoxLayout *leftLayout;
+    QVBoxLayout *rightLayout;
+    
+    // Input form
+    QGroupBox *inputGroup;
+    QGridLayout *inputLayout;
+    QSpinBox *idInput;
+    QLineEdit *nameInput;
+    QLineEdit *majorInput;
+    QDoubleSpinBox *gpaInput;
+    
+    // Buttons
+    QPushButton *addBtn;
+    QPushButton *updateBtn;
+    QPushButton *deleteBtn;
+    QPushButton *refreshBtn;
+    QPushButton *clearBtn;
+    
+    // Table
+    QTableWidget *studentTable;
+    
+    // Database
+    sqlite3 *db;
+    const char *DB_NAME = "institute.db";
 
 public:
-	Student() : studentID(0), fullName(""), major(""), gpa(0.0) {}
+    StudentManagementSystem(QWidget *parent = nullptr) : QMainWindow(parent)
+    {
+        setupUI();
+        setupDatabase();
+        connectSignals();
+        loadStudents();
+    }
 
-	void setStudentID(int id) { studentID = id; }
-	void setFullName(string name) { fullName = name; }
-	void setMajor(string subject) { major = subject; }
-	void setGPA(float grade) { gpa = grade; }
+    ~StudentManagementSystem()
+    {
+        if (db) {
+            sqlite3_close(db);
+        }
+    }
 
-	int getStudentID() { return studentID; }
-	string getFullName() { return fullName; }
-	string getMajor() { return major; }
-	float getGPA() { return gpa; }
+private slots:
+    void addStudent()
+    {
+        if (validateInput()) {
+            std::stringstream query;
+            query << "INSERT INTO students (ID, Name, Major, GPA) VALUES (" 
+                  << idInput->value() << ", '" 
+                  << nameInput->text().toStdString() << "', '" 
+                  << majorInput->text().toStdString() << "', " 
+                  << gpaInput->value() << ")";
+            
+            if (executeQuery(query.str())) {
+                QMessageBox::information(this, "Success", "Student added successfully!");
+                clearInputs();
+                loadStudents();
+            }
+        }
+    }
+
+    void updateStudent()
+    {
+        int currentRow = studentTable->currentRow();
+        if (currentRow < 0) {
+            QMessageBox::warning(this, "Warning", "Please select a student to update!");
+            return;
+        }
+
+        if (validateInput()) {
+            std::stringstream query;
+            query << "UPDATE students SET Name='" << nameInput->text().toStdString() 
+                  << "', Major='" << majorInput->text().toStdString() 
+                  << "', GPA=" << gpaInput->value() 
+                  << " WHERE ID=" << idInput->value();
+            
+            if (executeQuery(query.str())) {
+                QMessageBox::information(this, "Success", "Student updated successfully!");
+                clearInputs();
+                loadStudents();
+            }
+        }
+    }
+
+    void deleteStudent()
+    {
+        int currentRow = studentTable->currentRow();
+        if (currentRow < 0) {
+            QMessageBox::warning(this, "Warning", "Please select a student to delete!");
+            return;
+        }
+
+        int id = studentTable->item(currentRow, 0)->text().toInt();
+        
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            this, "Confirm Delete", 
+            "Are you sure you want to delete this student?",
+            QMessageBox::Yes | QMessageBox::No
+        );
+
+        if (reply == QMessageBox::Yes) {
+            std::stringstream query;
+            query << "DELETE FROM students WHERE ID=" << id;
+            
+            if (executeQuery(query.str())) {
+                QMessageBox::information(this, "Success", "Student deleted successfully!");
+                clearInputs();
+                loadStudents();
+            }
+        }
+    }
+
+    void loadStudents()
+    {
+        studentTable->setRowCount(0);
+        
+        sqlite3_stmt *stmt;
+        std::string query = "SELECT * FROM students ORDER BY ID";
+        
+        if (sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
+            int row = 0;
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                studentTable->insertRow(row);
+                
+                studentTable->setItem(row, 0, new QTableWidgetItem(
+                    QString::number(sqlite3_column_int(stmt, 0))));
+                studentTable->setItem(row, 1, new QTableWidgetItem(
+                    QString::fromUtf8((char*)sqlite3_column_text(stmt, 1))));
+                studentTable->setItem(row, 2, new QTableWidgetItem(
+                    QString::fromUtf8((char*)sqlite3_column_text(stmt, 2))));
+                studentTable->setItem(row, 3, new QTableWidgetItem(
+                    QString::number(sqlite3_column_double(stmt, 3), 'f', 2)));
+                
+                row++;
+            }
+            sqlite3_finalize(stmt);
+        }
+    }
+
+    void onTableItemClicked()
+    {
+        int currentRow = studentTable->currentRow();
+        if (currentRow >= 0) {
+            idInput->setValue(studentTable->item(currentRow, 0)->text().toInt());
+            nameInput->setText(studentTable->item(currentRow, 1)->text());
+            majorInput->setText(studentTable->item(currentRow, 2)->text());
+            gpaInput->setValue(studentTable->item(currentRow, 3)->text().toDouble());
+        }
+    }
+
+    void clearInputs()
+    {
+        idInput->setValue(0);
+        nameInput->clear();
+        majorInput->clear();
+        gpaInput->setValue(0.0);
+        studentTable->clearSelection();
+    }
+
+private:
+    void setupUI()
+    {
+        setWindowTitle("Student Management System");
+        setMinimumSize(800, 600);
+        
+        centralWidget = new QWidget(this);
+        setCentralWidget(centralWidget);
+        
+        mainLayout = new QVBoxLayout(centralWidget);
+        topLayout = new QHBoxLayout();
+        mainLayout->addLayout(topLayout);
+        
+        // Left side - Input form
+        leftLayout = new QVBoxLayout();
+        setupInputForm();
+        leftLayout->addWidget(inputGroup);
+        leftLayout->addStretch();
+        
+        // Right side - Table
+        rightLayout = new QVBoxLayout();
+        setupTable();
+        rightLayout->addWidget(studentTable);
+        
+        topLayout->addLayout(leftLayout, 1);
+        topLayout->addLayout(rightLayout, 2);
+    }
+
+    void setupInputForm()
+    {
+        inputGroup = new QGroupBox("Student Information");
+        inputLayout = new QGridLayout(inputGroup);
+        
+        // ID input
+        inputLayout->addWidget(new QLabel("Student ID:"), 0, 0);
+        idInput = new QSpinBox();
+        idInput->setRange(1, 999999);
+        inputLayout->addWidget(idInput, 0, 1);
+        
+        // Name input
+        inputLayout->addWidget(new QLabel("Full Name:"), 1, 0);
+        nameInput = new QLineEdit();
+        inputLayout->addWidget(nameInput, 1, 1);
+        
+        // Major input
+        inputLayout->addWidget(new QLabel("Major:"), 2, 0);
+        majorInput = new QLineEdit();
+        inputLayout->addWidget(majorInput, 2, 1);
+        
+        // GPA input
+        inputLayout->addWidget(new QLabel("GPA:"), 3, 0);
+        gpaInput = new QDoubleSpinBox();
+        gpaInput->setRange(0.0, 10.0);
+        gpaInput->setDecimals(2);
+        gpaInput->setSingleStep(0.1);
+        inputLayout->addWidget(gpaInput, 3, 1);
+        
+        // Buttons
+        QHBoxLayout *buttonLayout = new QHBoxLayout();
+        addBtn = new QPushButton("Add Student");
+        updateBtn = new QPushButton("Update Student");
+        deleteBtn = new QPushButton("Delete Student");
+        clearBtn = new QPushButton("Clear");
+        refreshBtn = new QPushButton("Refresh");
+        
+        addBtn->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; }");
+        updateBtn->setStyleSheet("QPushButton { background-color: #2196F3; color: white; font-weight: bold; }");
+        deleteBtn->setStyleSheet("QPushButton { background-color: #f44336; color: white; font-weight: bold; }");
+        clearBtn->setStyleSheet("QPushButton { background-color: #FF9800; color: white; font-weight: bold; }");
+        refreshBtn->setStyleSheet("QPushButton { background-color: #9C27B0; color: white; font-weight: bold; }");
+        
+        buttonLayout->addWidget(addBtn);
+        buttonLayout->addWidget(updateBtn);
+        buttonLayout->addWidget(deleteBtn);
+        buttonLayout->addWidget(clearBtn);
+        buttonLayout->addWidget(refreshBtn);
+        
+        inputLayout->addLayout(buttonLayout, 4, 0, 1, 2);
+    }
+
+    void setupTable()
+    {
+        studentTable = new QTableWidget();
+        studentTable->setColumnCount(4);
+        
+        QStringList headers;
+        headers << "ID" << "Name" << "Major" << "GPA";
+        studentTable->setHorizontalHeaderLabels(headers);
+        
+        studentTable->horizontalHeader()->setStretchLastSection(true);
+        studentTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+        studentTable->setAlternatingRowColors(true);
+        studentTable->setSortingEnabled(true);
+    }
+
+    void connectSignals()
+    {
+        connect(addBtn, &QPushButton::clicked, this, &StudentManagementSystem::addStudent);
+        connect(updateBtn, &QPushButton::clicked, this, &StudentManagementSystem::updateStudent);
+        connect(deleteBtn, &QPushButton::clicked, this, &StudentManagementSystem::deleteStudent);
+        connect(clearBtn, &QPushButton::clicked, this, &StudentManagementSystem::clearInputs);
+        connect(refreshBtn, &QPushButton::clicked, this, &StudentManagementSystem::loadStudents);
+        connect(studentTable, &QTableWidget::itemClicked, this, &StudentManagementSystem::onTableItemClicked);
+    }
+
+    void setupDatabase()
+    {
+        if (sqlite3_open(DB_NAME, &db)) {
+            QMessageBox::critical(this, "Database Error", "Failed to connect to database!");
+            return;
+        }
+        
+        std::string query = "CREATE TABLE IF NOT EXISTS students (ID INTEGER PRIMARY KEY, Name TEXT, Major TEXT, GPA REAL)";
+        executeQuery(query);
+    }
+
+    bool executeQuery(const std::string &query)
+    {
+        char *errMsg = nullptr;
+        if (sqlite3_exec(db, query.c_str(), nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            QMessageBox::critical(this, "Database Error", QString("Error: %1").arg(errMsg));
+            sqlite3_free(errMsg);
+            return false;
+        }
+        return true;
+    }
+
+    bool validateInput()
+    {
+        if (nameInput->text().trimmed().isEmpty()) {
+            QMessageBox::warning(this, "Validation Error", "Please enter student name!");
+            return false;
+        }
+        
+        if (majorInput->text().trimmed().isEmpty()) {
+            QMessageBox::warning(this, "Validation Error", "Please enter major!");
+            return false;
+        }
+        
+        if (idInput->value() <= 0) {
+            QMessageBox::warning(this, "Validation Error", "Please enter a valid student ID!");
+            return false;
+        }
+        
+        return true;
+    }
 };
 
-void executeQuery(sqlite3 *db, const string &query)
+int main(int argc, char *argv[])
 {
-	char *errMsg = nullptr;
-	if (sqlite3_exec(db, query.c_str(), nullptr, nullptr, &errMsg) != SQLITE_OK)
-	{
-		cout << RED << "Error: " << errMsg << RESET << endl;
-		sqlite3_free(errMsg);
-	}
+    QApplication app(argc, argv);
+    
+    StudentManagementSystem window;
+    window.show();
+    
+    return app.exec();
 }
 
-void insertStudent(sqlite3 *db)
-{
-	Student s;
-	int id;
-	string name, major;
-	float gpa;
-
-	cout << GREEN << "Let's add a new student!" << RESET << endl;
-	cout << YELLOW << "Enter Student ID: " << RESET;
-	cin >> id;
-	s.setStudentID(id);
-	cin.ignore();
-
-	cout << YELLOW << "Enter Student's Full Name: " << RESET;
-	getline(cin, name);
-	s.setFullName(name);
-
-	cout << YELLOW << "Enter Major: " << RESET;
-	getline(cin, major);
-	s.setMajor(major);
-
-	do
-	{
-		cout << YELLOW << "Enter GPA (0 - 10): " << RESET;
-		cin >> gpa;
-	} while (gpa < 0 || gpa > 10);
-	s.setGPA(gpa);
-
-	stringstream query;
-	query << "INSERT INTO students (ID, Name, Major, GPA) VALUES (" << s.getStudentID() << ", '" << s.getFullName() << "', '" << s.getMajor() << "', " << s.getGPA() << ")";
-	executeQuery(db, query.str());
-	cout << GREEN << "Student added successfully!" << RESET << endl;
-}
-
-void displayStudents(sqlite3 *db)
-{
-	sqlite3_stmt *stmt;
-	string query = "SELECT * FROM students";
-	if (sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, nullptr) == SQLITE_OK)
-	{
-		cout << CYAN << "\nID | Name | Major | GPA" << RESET << endl;
-		while (sqlite3_step(stmt) == SQLITE_ROW)
-		{
-			cout << sqlite3_column_int(stmt, 0) << " | "
-				 << sqlite3_column_text(stmt, 1) << " | "
-				 << sqlite3_column_text(stmt, 2) << " | "
-				 << sqlite3_column_double(stmt, 3) << endl;
-		}
-		sqlite3_finalize(stmt);
-	}
-	else
-	{
-		cout << RED << "Error retrieving students!" << RESET << endl;
-	}
-}
-
-void updateGPA(sqlite3 *db)
-{
-	int id;
-	float gpa;
-	cout << YELLOW << "Enter Student ID: " << RESET;
-	cin >> id;
-	do
-	{
-		cout << YELLOW << "Enter new GPA (0 - 10): " << RESET;
-		cin >> gpa;
-	} while (gpa < 0 || gpa > 10);
-
-	stringstream query;
-	query << "UPDATE students SET GPA=" << gpa << " WHERE ID=" << id;
-	executeQuery(db, query.str());
-	cout << GREEN << "GPA Updated Successfully!" << RESET << endl;
-}
-
-void deleteStudent(sqlite3 *db)
-{
-	int id;
-	cout << YELLOW << "Enter Student ID to delete: " << RESET;
-	cin >> id;
-	stringstream query;
-	query << "DELETE FROM students WHERE ID=" << id;
-	executeQuery(db, query.str());
-	cout << GREEN << "Student record deleted." << RESET << endl;
-}
-
-void setupDatabase(sqlite3 *db)
-{
-	string query = "CREATE TABLE IF NOT EXISTS students (ID INTEGER PRIMARY KEY, Name TEXT, Major TEXT, GPA REAL)";
-	executeQuery(db, query);
-}
-
-int main()
-{
-	sqlite3 *db;
-	if (sqlite3_open(DB_NAME, &db))
-	{
-		cout << RED << "Failed to connect to database!" << RESET << endl;
-		return 1;
-	}
-	cout << GREEN << "Connected to database successfully!" << RESET << endl;
-
-	setupDatabase(db);
-
-	bool running = true;
-	while (running)
-	{
-		cout << "\n"
-			 << BLUE << "Institute Management System" << RESET << endl;
-		cout << "1. Add Student\n2. View Students\n3. Update GPA\n4. Delete Student\n0. Exit\nChoice: ";
-		int choice;
-		cin >> choice;
-		switch (choice)
-		{
-		case 1:
-			insertStudent(db);
-			break;
-		case 2:
-			displayStudents(db);
-			break;
-		case 3:
-			updateGPA(db);
-			break;
-		case 4:
-			deleteStudent(db);
-			break;
-		case 0:
-			running = false;
-			cout << GREEN << "Goodbye!" << RESET << endl;
-			break;
-		default:
-			cout << RED << "Invalid choice, try again!" << RESET << endl;
-		}
-	}
-	sqlite3_close(db);
-	return 0;
-}
+#include "institute_mgmt.moc"

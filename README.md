@@ -1,40 +1,115 @@
-# SQLite vs. MySQL: A Comparison  
+# Student Management System
 
-I have worked with both **SQLite and MySQL** for this project, and each has its strengths depending on the use case. Below is a comparison highlighting the advantages and disadvantages of both databases.  
+A desktop application for managing student records built with Qt and SQLite. This application provides a complete CRUD (Create, Read, Update, Delete) interface for managing student information including ID, name, major, and GPA.
 
----
+## Features
 
-## **Advantages of SQLite**  
+- **Add Students**: Insert new student records with validation
+- **Update Students**: Modify existing student information
+- **Delete Students**: Remove student records with confirmation dialog
+- **View Students**: Display all students in a sortable table
+- **Data Persistence**: SQLite database for reliable data storage
+- **User-friendly Interface**: Clean Qt-based GUI with form validation
 
-- **Lightweight & Serverless** – No need for a separate database server; it operates as a single file.  
-- **Zero Configuration** – No installation or setup required, making it ideal for quick development.  
-- **Fast for Local Applications** – Suitable for embedded systems, mobile apps, and lightweight applications.  
-- **Cross-Platform Compatibility** – Works seamlessly across different operating systems.  
-- **Reduced Complexity** – No need to manage database users, permissions, or network connections.  
 
-### **Disadvantages of SQLite**  
+## System Requirements
 
-- **Not Scalable for Large Applications** – Handles fewer concurrent users compared to MySQL.  
-- **Limited Concurrency** – Supports only a single write operation at a time.  
-- **Lack of Advanced Features** – No built-in user authentication, replication, or stored procedures.  
+- Ubuntu 18.04 or later
+- Qt6 development libraries
+- SQLite3
+- C++17 compatible compiler
+- CMake 3.16 or later
 
----
+## Installation and Setup
 
-## **Advantages of MySQL**  
+### Step 1: Install Dependencies
 
-- **Scalable & Multi-User Support** – Designed for high-performance web applications and large-scale databases.  
-- **Strong Security & Authentication** – Offers user management, role-based access control, and encryption.  
-- **Replication & Clustering** – Supports master-slave and master-master replication for distributed databases.  
-- **Supports Stored Procedures & Triggers** – Allows more complex database logic execution.  
+For **Qt6**:
+```bash
+sudo apt update
+sudo apt install qt6-base-dev qt6-tools-dev qt6-tools-dev-tools libsqlite3-dev build-essential cmake
+```
 
-### **Disadvantages of MySQL**  
+### Step 2: Clone or Download
 
-- **Requires Setup & Maintenance** – Needs a dedicated database server and proper configuration.  
-- **Heavier Resource Usage** – Requires more memory and CPU compared to SQLite.  
-- **Not Ideal for Standalone Applications** – Better suited for web and cloud-based applications.  
+```bash
+# Create project directory
+mkdir institute_mgmt
+cd institute_mgmt
 
----
+# Copy the source files:
+# - institute_mgmt.cpp (main source code)
+# - CMakeLists.txt (build configuration)
+```
 
-### **Conclusion**  
+### Step 3: Build the Application
 
-If you need a **lightweight, embedded** database for local applications, **SQLite is the way to go**. But for **high-performance, multi-user, and scalable** applications, **MySQL is the better choice**. 🚀
+```bash
+mkdir build
+cd build
+cmake ..
+make
+./institute_mgmt
+```
+
+## Project Structure
+
+```
+institute_mgmt/
+├── institute_mgmt.cpp    # Main source code
+├── CMakeLists.txt        # Build configuration
+├── README.md            # This file
+└── build/               # Build directory (created during compilation)
+    └── institute_mgmt   # Compiled executable
+```
+
+## Usage
+
+### Adding a Student
+1. Fill in the student information in the left panel:
+   - **Student ID**: Unique identifier (1-999999)
+   - **Full Name**: Student's complete name
+   - **Major**: Field of study
+   - **GPA**: Grade point average (0.0-10.0)
+2. Click "Add Student" to save the record
+
+### Updating a Student
+1. Click on a student row in the table to select
+2. The form will auto-populate with the student's data
+3. Modify the information as needed
+4. Click "Update Student" to save changes
+
+### Deleting a Student
+1. Select a student from the table
+2. Click "Delete Student"
+3. Confirm the deletion in the dialog box
+
+### Other Operations
+- **Clear**: Reset all form fields
+- **Refresh**: Reload data from database
+- **Sort**: Click column headers to sort the table
+
+## Database
+
+The application creates an SQLite database file named `institute.db` in the application directory. The database schema includes:
+
+```sql
+CREATE TABLE students (
+    ID INTEGER PRIMARY KEY,
+    Name TEXT,
+    Major TEXT,
+    GPA REAL
+);
+```
+
+## Technical Details
+
+- **Framework**: Qt6 for GUI
+- **Database**: SQLite3 for data persistence
+- **Language**: C++17
+- **Build System**: CMake
+- **Architecture**: Single-file application with embedded MOC
+
+## License
+
+This project is open source. Feel free to use, modify, and distribute as needed.
